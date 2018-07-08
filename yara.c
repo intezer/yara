@@ -128,6 +128,7 @@ static char* ext_vars[MAX_ARGS_EXT_VAR + 1];
 static char* modules_data[MAX_ARGS_EXT_VAR + 1];
 
 static bool recursive_search = false;
+static int files_list_mode = false;
 static bool show_module_data = false;
 static bool show_tags = false;
 static bool show_stats = false;
@@ -215,6 +216,9 @@ args_option_t options[] =
 
   OPT_BOOLEAN('r', "recursive", &recursive_search,
       "recursively search directories"),
+      
+  OPT_BOOLEAN('X', "files-list-mode", &files_list_mode,
+      "scan files listed in input file"),
 
   OPT_BOOLEAN('f', "fast-scan", &fast_scan,
       "fast matching mode"),
@@ -1231,7 +1235,7 @@ int main(
   if (fast_scan)
     flags |= SCAN_FLAGS_FAST_MODE;
 
-  if (is_directory(argv[argc - 1]))
+  if (is_directory(argv[argc - 1]) || files_list_mode)
   {
     if (file_queue_init() != 0)
     {
@@ -1271,7 +1275,29 @@ int main(
       }
     }
 
-    scan_dir(argv[argc - 1], recursive_search, start_time);
+    if (files_list_mode)
+    {
+        FILE *fh = fopen(argv[argc - 1], "r");
+
+        if (fh != NULL)
+        {
+            char line[512];
+            
+            while(fgets(line, sizeof line, fh) != NULL)
+            {
+                // strip
+                line[strcspn(line, "\n")] = '\0';
+
+                // add to queue
+                file_queue_put(line);
+            }
+            fclose(fh);
+        }
+    }
+    else
+    {
+        scan_dir(argv[argc - 1], recursive_search, start_time);
+    }
 
     file_queue_finish();
 
